@@ -1,6 +1,10 @@
 import { createClient } from '@supabase/supabase-js'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co'
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder'
+// A URL e a chave "publishable" do Supabase são públicas por natureza
+// (ficam visíveis no bundle do cliente). A proteção dos dados vem das
+// políticas RLS no banco, não do sigilo da chave. Ficam fixas aqui para o
+// app funcionar sem depender de variáveis de ambiente no Vercel.
+const supabaseUrl = 'https://gjfilgcemjzilxyetwsy.supabase.co'
+const supabaseKey = 'sb_publishable_Cs8qtjswav13yf50ouJlGg_It1mVPXq'
 
 export const supabase = createClient(supabaseUrl, supabaseKey)
