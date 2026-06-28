@@ -1,5 +1,5 @@
 export type Pessoa = 'Gabi' | 'Rafa'
-export type TipoTransacao = 'casal' | 'pessoal' | 'entrada' | 'emprestimo' | 'parcelado'
+export type TipoTransacao = 'casal' | 'pessoal' | 'entrada' | 'emprestimo'
 export type FormaPagamento =
   | 'cartão de crédito'
   | 'cartão de débito'
@@ -67,16 +67,21 @@ export const MESES = [
   'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
 ]
 
-export const CATEGORIAS_CASAL = [
-  'aluguel', 'condomínio', 'água', 'luz', 'gás', 'internet',
-  'mercado', 'produtos de limpeza', 'higiene', 'remédios',
-  'streaming', 'móveis', 'eletrodomésticos', 'reparos', 'compras domésticas', 'outros'
+// Lista única de categorias para gastos (pessoais e do casal)
+export const CATEGORIAS = [
+  'roupas/calçados', 'academia', 'farmácia', 'date do casal', 'saúde',
+  'educação', 'assinatura', 'uber', 'mercado', 'ifood', 'aluguel',
+  'condomínio', 'água', 'luz', 'gás', 'internet', 'celular', 'fiança',
+  'reparos', 'compras domésticas', 'theo', 'presente', 'viagem', 'lazer', 'outros'
 ]
 
-export const CATEGORIAS_PESSOAL = [
-  'roupas', 'calçados', 'academia', 'cosméticos', 'lazer',
-  'médico/dentista', 'curso', 'assinatura', 'transporte', 'alimentação', 'outros'
+// Categorias das entradas
+export const CATEGORIAS_ENTRADA = [
+  'salário', 'mesada', 'freela', 'venda', 'rendimento', 'reembolso', 'presente', 'outros'
 ]
+
+// Quais categorias de entrada contam como "renda extra"
+export const RENDA_EXTRA_CATS = ['freela', 'venda', 'rendimento']
 
 export const FORMAS_PAGAMENTO: FormaPagamento[] = [
   'cartão de crédito', 'cartão de débito', 'pix', 'boleto',

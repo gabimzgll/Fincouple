@@ -1,4 +1,4 @@
-import { Transaction, Acerto, BalancoIndividual, SaldoCasal, Pessoa, MESES } from './types'
+import { Transaction, Acerto, BalancoIndividual, SaldoCasal, Pessoa, MESES, RENDA_EXTRA_CATS } from './types'
 
 export const GABI_PERCENTUAL = 0.626
 export const RAFA_PERCENTUAL = 0.374
@@ -11,6 +11,17 @@ export function getNomeMes(mes: number): string {
   return MESES[mes - 1] || ''
 }
 
+// Uma transação é parcelada quando tem parcelas >= 2 e um mês de início.
+function ehParcelado(t: Transaction): boolean {
+  return !!(t.parcelas && t.parcelas >= 2 && t.mes_inicio && t.ano_inicio)
+}
+
+// Valor efetivo da transação em um mês (parcela, se for parcelada)
+function valorNoMes(t: Transaction): number {
+  if (ehParcelado(t)) return t.valor_total / (t.parcelas as number)
+  return t.valor_total
+}
+
 export function getEffectiveTransactions(
   transacoes: Transaction[],
   mes: number,
@@ -18,38 +29,26 @@ export function getEffectiveTransactions(
 ): { transaction: Transaction; valor: number }[] {
   return transacoes
     .filter(t => aplicaNoMes(t, mes, ano))
-    .map(t => ({
-      transaction: t,
-      valor: t.tipo === 'parcelado' && t.parcelas ? t.valor_total / t.parcelas : t.valor_total,
-    }))
+    .map(t => ({ transaction: t, valor: valorNoMes(t) }))
 }
 
 export function getInstallmentValueForMonth(t: Transaction, mes: number, ano: number): number | null {
-  if (t.tipo !== 'parcelado' || !t.parcelas || !t.mes_inicio || !t.ano_inicio) return null
-  for (let i = 0; i < t.parcelas; i++) {
-    let m = t.mes_inicio + i
-    let a = t.ano_inicio
+  if (!ehParcelado(t)) return null
+  for (let i = 0; i < (t.parcelas as number); i++) {
+    let m = (t.mes_inicio as number) + i
+    let a = t.ano_inicio as number
     while (m > 12) { m -= 12; a++ }
-    if (m === mes && a === ano) return t.valor_total / t.parcelas
+    if (m === mes && a === ano) return t.valor_total / (t.parcelas as number)
   }
   return null
 }
 
-// Returns the effective value of a transaction in a given month
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function valorNoMes(t: Transaction, _mes: number, _ano: number): number {
-  if (t.tipo === 'parcelado' && t.parcelas && t.mes_inicio && t.ano_inicio) {
-    return t.valor_total / t.parcelas
-  }
-  return t.valor_total
-}
-
-// Checks if a transaction applies to a given month/year
+// A transação se aplica a um mês/ano?
 export function aplicaNoMes(t: Transaction, mes: number, ano: number): boolean {
-  if (t.tipo === 'parcelado' && t.parcelas && t.mes_inicio && t.ano_inicio) {
-    for (let i = 0; i < t.parcelas; i++) {
-      let m = t.mes_inicio + i
-      let a = t.ano_inicio
+  if (ehParcelado(t)) {
+    for (let i = 0; i < (t.parcelas as number); i++) {
+      let m = (t.mes_inicio as number) + i
+      let a = t.ano_inicio as number
       while (m > 12) { m -= 12; a++ }
       if (m === mes && a === ano) return true
     }
@@ -77,7 +76,7 @@ export function calcularBalancoIndividual(
   const saidas_por_categoria: Record<string, number> = {}
 
   for (const t of tx) {
-    const valor = valorNoMes(t, mes, ano)
+    const valor = valorNoMes(t)
     if (t.tipo === 'entrada') {
       entradas += valor
     } else {
@@ -101,7 +100,7 @@ export function calcularGastosPessoaisPorCategoria(
   const por_categoria: Record<string, number> = {}
   for (const t of tx) {
     const cat = t.categoria || 'sem categoria'
-    por_categoria[cat] = (por_categoria[cat] || 0) + valorNoMes(t, mes, ano)
+    por_categoria[cat] = (por_categoria[cat] || 0) + valorNoMes(t)
   }
   return por_categoria
 }
@@ -115,15 +114,29 @@ export function calcularGastosCasalPorCategoria(
   const por_categoria: Record<string, number> = {}
   for (const t of tx) {
     const cat = t.categoria || 'sem categoria'
-    por_categoria[cat] = (por_categoria[cat] || 0) + valorNoMes(t, mes, ano)
+    por_categoria[cat] = (por_categoria[cat] || 0) + valorNoMes(t)
   }
   return por_categoria
 }
 
-// Balanço proporcional: custo real de cada pessoa = gastos pessoais
-// (pessoal + parcelado) + a fatia que lhe cabe nos gastos do casal
-// (Gabi 62,6% / Rafa 37,4%). Empréstimos não entram (são transferência,
-// não consumo).
+// Gasto total por categoria (pessoal + casal), para limites de orçamento
+export function calcularGastosPorCategoria(
+  transacoes: Transaction[],
+  mes: number,
+  ano: number
+): Record<string, number> {
+  const tx = transacoesDoMes(transacoes, mes, ano).filter(t => t.tipo === 'casal' || t.tipo === 'pessoal')
+  const por_categoria: Record<string, number> = {}
+  for (const t of tx) {
+    const cat = t.categoria || 'sem categoria'
+    por_categoria[cat] = (por_categoria[cat] || 0) + valorNoMes(t)
+  }
+  return por_categoria
+}
+
+// Balanço proporcional: custo real de cada pessoa = gastos pessoais + a fatia
+// que lhe cabe nos gastos do casal (Gabi 62,6% / Rafa 37,4%).
+// Empréstimos não entram como consumo. Fatura = total lançado no cartão.
 export interface BalancoProporcional {
   pessoa: Pessoa
   entradas: number
@@ -147,16 +160,14 @@ export function calcularBalancoProporcional(
   let fatura_cartao = 0
 
   for (const t of tx) {
-    const valor = valorNoMes(t, mes, ano)
+    const valor = valorNoMes(t)
     if (t.tipo === 'casal') total_casal += valor
 
     if (t.pessoa === pessoa) {
       if (t.tipo === 'entrada') {
         entradas += valor
       } else {
-        if (t.tipo === 'pessoal' || t.tipo === 'parcelado') gastos_pessoais += valor
-        // Fatura = tudo que a pessoa pagou no cartão de crédito (inclui a
-        // parte do casal que ela pagou no cartão), exceto entradas.
+        if (t.tipo === 'pessoal') gastos_pessoais += valor
         if (t.forma_pagamento === 'cartão de crédito') fatura_cartao += valor
       }
     }
@@ -169,21 +180,12 @@ export function calcularBalancoProporcional(
   return { pessoa, entradas, gastos_pessoais, parte_casal, saidas, sobra: entradas - saidas, fatura_cartao }
 }
 
-// Remove acentos e deixa minúsculo, para comparar descrições.
-function normalizar(s: string): string {
-  return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
-}
-
-// Renda extra = todas as entradas (dos dois) que NÃO são salário nem mesada.
+// Renda extra = entradas (dos dois) cuja categoria é freela / venda / rendimento.
 export function calcularRendaExtra(transacoes: Transaction[], mes: number, ano: number): number {
-  const tx = transacoesDoMes(transacoes, mes, ano).filter(t => t.tipo === 'entrada')
-  let extra = 0
-  for (const t of tx) {
-    const d = normalizar(t.descricao || '')
-    const ehFixa = d.includes('salario') || d.includes('mesada')
-    if (!ehFixa) extra += valorNoMes(t, mes, ano)
-  }
-  return extra
+  const tx = transacoesDoMes(transacoes, mes, ano).filter(
+    t => t.tipo === 'entrada' && t.categoria && RENDA_EXTRA_CATS.includes(t.categoria)
+  )
+  return tx.reduce((sum, t) => sum + valorNoMes(t), 0)
 }
 
 export function calcularSaldoCasal(
@@ -200,7 +202,7 @@ export function calcularSaldoCasal(
   let emprestimosRafaParaGabi = 0
 
   for (const t of tx) {
-    const valor = valorNoMes(t, mes, ano)
+    const valor = valorNoMes(t)
     if (t.tipo === 'casal') {
       if (t.pessoa === 'Gabi') gabiPagouCasal += valor
       else rafaPagouCasal += valor
@@ -214,10 +216,7 @@ export function calcularSaldoCasal(
   const gabiDeveria = totalCasal * GABI_PERCENTUAL
   const rafaDeveria = totalCasal * RAFA_PERCENTUAL
 
-  // Positive = person overpaid → they're owed money
   const gabiSaldo = gabiPagouCasal - gabiDeveria
-
-  // Net: positive = Rafa owes Gabi; negative = Gabi owes Rafa
   const netEmprestimos = emprestimosGabiParaRafa - emprestimosRafaParaGabi
   const netTotal = gabiSaldo + netEmprestimos
 

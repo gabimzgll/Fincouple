@@ -14,11 +14,11 @@ const tipoLabel: Record<string, string> = {
   pessoal: 'Pessoal',
   entrada: 'Entrada',
   emprestimo: 'Emprestimo',
-  parcelado: 'Parcelado',
 }
 
 export default function TransacaoItem({ transacao: t, mes, ano, onDelete }: Props) {
-  const valor = t.tipo === 'parcelado'
+  const ehParcelado = !!(t.parcelas && t.parcelas >= 2)
+  const valor = ehParcelado
     ? (getInstallmentValueForMonth(t, mes, ano) ?? t.valor_total)
     : t.valor_total
 
@@ -29,7 +29,7 @@ export default function TransacaoItem({ transacao: t, mes, ano, onDelete }: Prop
         <p className="text-xs text-gray-400">
           {tipoLabel[t.tipo]} · {t.pessoa} · {t.forma_pagamento}
           {t.categoria && ` · ${t.categoria}`}
-          {t.tipo === 'parcelado' && t.parcelas && ` · ${t.parcelas}x`}
+          {ehParcelado && ` · ${t.parcelas}x`}
           {t.tipo === 'emprestimo' && t.para_pessoa && ` para ${t.para_pessoa}`}
         </p>
       </div>
@@ -37,7 +37,7 @@ export default function TransacaoItem({ transacao: t, mes, ano, onDelete }: Prop
         <p className={`text-sm font-semibold ${t.tipo === 'entrada' ? 'text-green-600' : 'text-gray-800'}`}>
           {t.tipo === 'entrada' ? '+' : ''}{formatCurrency(valor)}
         </p>
-        {t.tipo === 'parcelado' && t.parcelas && (
+        {ehParcelado && (
           <p className="text-xs text-gray-400">{formatCurrency(t.valor_total)} total</p>
         )}
       </div>
