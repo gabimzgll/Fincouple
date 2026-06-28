@@ -3,29 +3,27 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
-import { Transaction, Acerto, CATEGORIAS } from '@/lib/types'
+import { Transaction, Acerto, Limite, CATEGORIAS } from '@/lib/types'
 import {
   calcularBalancoProporcional,
   calcularSaldoCasal,
   calcularGastosCasalPorCategoria,
   calcularGastosPessoaisPorCategoria,
+  calcularGastosPorCategoria,
   calcularRendaExtra,
   formatCurrency,
   getNomeMes,
 } from '@/lib/calculations'
 
-// Cores de identidade (usadas em títulos de cards e gráficos)
-const COR_GABI = 'text-purple-400'        // roxo pastel
-const COR_RAFA = 'text-[#006437]'         // verde Palmeiras
-const COR_CASAL = 'text-amber-600'        // tom do casal
+const COR_GABI = 'text-purple-400'
+const COR_RAFA = 'text-[#006437]'
+const COR_CASAL = 'text-amber-600'
 
-// Cores de valores
 const COR_ENTRADA = 'text-blue-700'
 const COR_SAIDA = 'text-orange-600'
 const COR_EXTRA = 'text-sky-500'
 const corSaldo = (v: number) => (v >= 0 ? 'text-green-600' : 'text-red-500')
 
-// Paleta pastel para os gráficos
 const PALETTE = [
   '#a5b4fc', '#fca5a5', '#fcd34d', '#6ee7b7', '#93c5fd', '#f9a8d4',
   '#c4b5fd', '#5eead4', '#fdba74', '#bef264', '#d8b4fe', '#7dd3fc',
@@ -120,17 +118,20 @@ export default function HomePage() {
   const [ano, setAno] = useState(now.getFullYear())
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [acertos, setAcertos] = useState<Acerto[]>([])
+  const [limites, setLimites] = useState<Limite[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     async function load() {
       setLoading(true)
-      const [{ data: txs }, { data: acs }] = await Promise.all([
+      const [{ data: txs }, { data: acs }, { data: lim }] = await Promise.all([
         supabase.from('transactions').select('*').order('created_at', { ascending: false }),
         supabase.from('acertos').select('*'),
+        supabase.from('limites').select('*'),
       ])
       setTransactions((txs as Transaction[]) || [])
       setAcertos((acs as Acerto[]) || [])
+      setLimites((lim as Limite[]) || [])
       setLoading(false)
     }
     load()
@@ -143,6 +144,10 @@ export default function HomePage() {
   const gabiPessoalPorCategoria = calcularGastosPessoaisPorCategoria(transactions, 'Gabi', mes, ano)
   const rafaPessoalPorCategoria = calcularGastosPessoaisPorCategoria(transactions, 'Rafa', mes, ano)
   const rendaExtra = calcularRendaExtra(transactions, mes, ano)
+  const gastosPorCategoria = calcularGastosPorCategoria(transactions, mes, ano)
+  const limitesComGasto = limites
+    .map(l => ({ categoria: l.categoria, limite: l.valor, gasto: gastosPorCategoria[l.categoria] || 0 }))
+    .sort((a, b) => (b.gasto / b.limite) - (a.gasto / a.limite))
 
   const prevMes = mes === 1 ? 12 : mes - 1
   const prevAno = mes === 1 ? ano - 1 : ano
@@ -275,6 +280,35 @@ export default function HomePage() {
             <PieCard title="Rafa — gastos pessoais" titleColor={COR_RAFA} data={rafaPessoalPorCategoria} border="border-green-100" />
             <PieCard title="Casal — gastos compartilhados" titleColor={COR_CASAL} data={casalPorCategoria} border="border-amber-100" />
           </div>
+
+          {limitesComGasto.length > 0 && (
+            <div className="bg-white rounded-2xl shadow p-5 border border-gray-100">
+              <h2 className="text-lg font-semibold text-amber-600 mb-4">Limites do mês</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
+                {limitesComGasto.map(({ categoria, limite, gasto }) => {
+                  const pct = limite > 0 ? (gasto / limite) * 100 : 0
+                  const estourou = gasto > limite
+                  const barra = estourou ? 'bg-red-500' : pct > 80 ? 'bg-amber-400' : 'bg-green-500'
+                  return (
+                    <div key={categoria}>
+                      <div className="flex justify-between text-sm mb-0.5">
+                        <span className="text-gray-600 capitalize">{categoria}</span>
+                        <span className={estourou ? 'text-red-500 font-medium' : 'text-gray-500'}>
+                          {formatCurrency(gasto)} / {formatCurrency(limite)}
+                        </span>
+                      </div>
+                      <div className="h-2 rounded-full bg-gray-100 overflow-hidden">
+                        <div className={`h-full rounded-full ${barra}`} style={{ width: `${Math.min(100, pct)}%` }} />
+                      </div>
+                      {estourou && (
+                        <p className="text-[11px] text-red-500 mt-0.5">estourou {formatCurrency(gasto - limite)}</p>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
 
           <div className="bg-white rounded-2xl shadow p-5 border border-gray-100">
             <h2 className={`text-lg font-semibold mb-4 ${COR_CASAL}`}>Saldo do Casal</h2>

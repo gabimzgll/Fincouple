@@ -39,6 +39,21 @@ export interface Acerto {
   descricao: string
 }
 
+export interface Limite {
+  id: string
+  categoria: string
+  valor: number
+}
+
+export interface Meta {
+  id: string
+  created_at: string
+  titulo: string
+  valor_alvo: number
+  valor_atual: number
+  prazo?: string
+}
+
 export interface BalancoIndividual {
   pessoa: Pessoa
   entradas: number
