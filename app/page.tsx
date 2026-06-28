@@ -7,6 +7,7 @@ import { Transaction, Acerto } from '@/lib/types'
 import {
   calcularBalancoIndividual,
   calcularSaldoCasal,
+  calcularGastosCasalPorCategoria,
   formatCurrency,
   getNomeMes,
 } from '@/lib/calculations'
@@ -36,6 +37,7 @@ export default function HomePage() {
   const gabiBalanco = calcularBalancoIndividual(transactions, acertos, 'Gabi', mes, ano)
   const rafaBalanco = calcularBalancoIndividual(transactions, acertos, 'Rafa', mes, ano)
   const saldoCasal = calcularSaldoCasal(transactions, acertos, mes, ano)
+  const casalPorCategoria = calcularGastosCasalPorCategoria(transactions, mes, ano)
 
   const recentTransactions = transactions.slice(0, 10)
 
@@ -76,14 +78,14 @@ export default function HomePage() {
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="bg-white rounded-2xl shadow p-5 border border-rose-100">
-              <h2 className="text-lg font-semibold text-rose-600 mb-3">Balanco da Gabi</h2>
+              <h2 className="text-lg font-semibold text-rose-600 mb-3">Balanço da Gabi</h2>
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-gray-500">Entradas</span>
                   <span className="text-green-600 font-medium">{formatCurrency(gabiBalanco.entradas)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-500">Saidas</span>
+                  <span className="text-gray-500">Saídas</span>
                   <span className="text-red-500 font-medium">{formatCurrency(gabiBalanco.saidas)}</span>
                 </div>
                 {Object.entries(gabiBalanco.saidas_por_metodo).map(([metodo, valor]) => (
@@ -102,14 +104,14 @@ export default function HomePage() {
             </div>
 
             <div className="bg-white rounded-2xl shadow p-5 border border-blue-100">
-              <h2 className="text-lg font-semibold text-blue-600 mb-3">Balanco do Rafa</h2>
+              <h2 className="text-lg font-semibold text-blue-600 mb-3">Balanço do Rafa</h2>
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-gray-500">Entradas</span>
                   <span className="text-green-600 font-medium">{formatCurrency(rafaBalanco.entradas)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-500">Saidas</span>
+                  <span className="text-gray-500">Saídas</span>
                   <span className="text-red-500 font-medium">{formatCurrency(rafaBalanco.saidas)}</span>
                 </div>
                 {Object.entries(rafaBalanco.saidas_por_metodo).map(([metodo, valor]) => (
@@ -156,13 +158,13 @@ export default function HomePage() {
               <div className="space-y-2">
                 {saldoCasal.emprestimos_gabi_para_rafa > 0 && (
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Emprestimo Gabi para Rafa</span>
+                    <span className="text-gray-500">Empréstimo Gabi para Rafa</span>
                     <span>{formatCurrency(saldoCasal.emprestimos_gabi_para_rafa)}</span>
                   </div>
                 )}
                 {saldoCasal.emprestimos_rafa_para_gabi > 0 && (
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Emprestimo Rafa para Gabi</span>
+                    <span className="text-gray-500">Empréstimo Rafa para Gabi</span>
                     <span>{formatCurrency(saldoCasal.emprestimos_rafa_para_gabi)}</span>
                   </div>
                 )}
@@ -182,11 +184,67 @@ export default function HomePage() {
                     </div>
                   ) : (
                     <div className="bg-green-50 rounded-xl p-3 text-center">
-                      <p className="font-bold text-green-700">Estao quites!</p>
+                      <p className="font-bold text-green-700">Estão quites!</p>
                     </div>
                   )}
                 </div>
               </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-white rounded-2xl shadow p-5 border border-rose-100">
+              <h2 className="text-base font-semibold text-rose-600 mb-3">Gabi — por categoria</h2>
+              {Object.keys(gabiBalanco.saidas_por_categoria).length === 0 ? (
+                <p className="text-gray-400 text-xs">Nenhum gasto pessoal</p>
+              ) : (
+                <ul className="space-y-1.5 text-sm">
+                  {Object.entries(gabiBalanco.saidas_por_categoria)
+                    .sort((a, b) => b[1] - a[1])
+                    .map(([cat, val]) => (
+                      <li key={cat} className="flex justify-between">
+                        <span className="text-gray-500 capitalize">{cat}</span>
+                        <span className="font-medium text-gray-800">{formatCurrency(val)}</span>
+                      </li>
+                    ))}
+                </ul>
+              )}
+            </div>
+
+            <div className="bg-white rounded-2xl shadow p-5 border border-violet-100">
+              <h2 className="text-base font-semibold text-violet-600 mb-3">Rafa — por categoria</h2>
+              {Object.keys(rafaBalanco.saidas_por_categoria).length === 0 ? (
+                <p className="text-gray-400 text-xs">Nenhum gasto pessoal</p>
+              ) : (
+                <ul className="space-y-1.5 text-sm">
+                  {Object.entries(rafaBalanco.saidas_por_categoria)
+                    .sort((a, b) => b[1] - a[1])
+                    .map(([cat, val]) => (
+                      <li key={cat} className="flex justify-between">
+                        <span className="text-gray-500 capitalize">{cat}</span>
+                        <span className="font-medium text-gray-800">{formatCurrency(val)}</span>
+                      </li>
+                    ))}
+                </ul>
+              )}
+            </div>
+
+            <div className="bg-white rounded-2xl shadow p-5 border border-amber-100">
+              <h2 className="text-base font-semibold text-amber-600 mb-3">Casal — por categoria</h2>
+              {Object.keys(casalPorCategoria).length === 0 ? (
+                <p className="text-gray-400 text-xs">Nenhum gasto do casal</p>
+              ) : (
+                <ul className="space-y-1.5 text-sm">
+                  {Object.entries(casalPorCategoria)
+                    .sort((a, b) => b[1] - a[1])
+                    .map(([cat, val]) => (
+                      <li key={cat} className="flex justify-between">
+                        <span className="text-gray-500 capitalize">{cat}</span>
+                        <span className="font-medium text-gray-800">{formatCurrency(val)}</span>
+                      </li>
+                    ))}
+                </ul>
+              )}
             </div>
           </div>
 
@@ -195,7 +253,7 @@ export default function HomePage() {
               href="/registrar"
               className="bg-rose-600 hover:bg-rose-700 text-white px-5 py-2.5 rounded-xl font-medium transition-colors"
             >
-              + Registrar Transacao
+              + Registrar Transação
             </Link>
             <Link
               href="/registrar?tipo=acerto"
@@ -207,17 +265,17 @@ export default function HomePage() {
               href={`/balanco/${mes}/${ano}`}
               className="bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 px-5 py-2.5 rounded-xl font-medium transition-colors"
             >
-              Ver Balanco Completo
+              Ver Balanço Completo
             </Link>
           </div>
 
           <div className="bg-white rounded-2xl shadow p-5">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-700">Transacoes Recentes</h2>
+              <h2 className="text-lg font-semibold text-gray-700">Transações Recentes</h2>
               <Link href="/historico" className="text-rose-600 text-sm hover:underline">Ver todas</Link>
             </div>
             {recentTransactions.length === 0 ? (
-              <p className="text-gray-400 text-sm text-center py-4">Nenhuma transacao registrada ainda.</p>
+              <p className="text-gray-400 text-sm text-center py-4">Nenhuma transação registrada ainda.</p>
             ) : (
               <ul className="divide-y">
                 {recentTransactions.map((t) => (

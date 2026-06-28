@@ -35,7 +35,6 @@ export function getInstallmentValueForMonth(t: Transaction, mes: number, ano: nu
   return null
 }
 
-// Returns the effective value of a transaction in a given month
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 function valorNoMes(t: Transaction, _mes: number, _ano: number): number {
   if (t.tipo === 'parcelado' && t.parcelas && t.mes_inicio && t.ano_inicio) {
@@ -44,7 +43,6 @@ function valorNoMes(t: Transaction, _mes: number, _ano: number): number {
   return t.valor_total
 }
 
-// Checks if a transaction applies to a given month/year
 export function aplicaNoMes(t: Transaction, mes: number, ano: number): boolean {
   if (t.tipo === 'parcelado' && t.parcelas && t.mes_inicio && t.ano_inicio) {
     for (let i = 0; i < t.parcelas; i++) {
@@ -74,6 +72,7 @@ export function calcularBalancoIndividual(
   let entradas = 0
   let saidas = 0
   const saidas_por_metodo: Record<string, number> = {}
+  const saidas_por_categoria: Record<string, number> = {}
 
   for (const t of tx) {
     const valor = valorNoMes(t, mes, ano)
@@ -82,10 +81,26 @@ export function calcularBalancoIndividual(
     } else {
       saidas += valor
       saidas_por_metodo[t.forma_pagamento] = (saidas_por_metodo[t.forma_pagamento] || 0) + valor
+      const cat = t.categoria || 'sem categoria'
+      saidas_por_categoria[cat] = (saidas_por_categoria[cat] || 0) + valor
     }
   }
 
-  return { pessoa, entradas, saidas, saidas_por_metodo, sobra: entradas - saidas }
+  return { pessoa, entradas, saidas, saidas_por_metodo, saidas_por_categoria, sobra: entradas - saidas }
+}
+
+export function calcularGastosCasalPorCategoria(
+  transacoes: Transaction[],
+  mes: number,
+  ano: number
+): Record<string, number> {
+  const tx = transacoesDoMes(transacoes, mes, ano).filter(t => t.tipo === 'casal')
+  const por_categoria: Record<string, number> = {}
+  for (const t of tx) {
+    const cat = t.categoria || 'sem categoria'
+    por_categoria[cat] = (por_categoria[cat] || 0) + valorNoMes(t, mes, ano)
+  }
+  return por_categoria
 }
 
 export function calcularSaldoCasal(
@@ -116,10 +131,7 @@ export function calcularSaldoCasal(
   const gabiDeveria = totalCasal * GABI_PERCENTUAL
   const rafaDeveria = totalCasal * RAFA_PERCENTUAL
 
-  // Positive = person overpaid → they're owed money
   const gabiSaldo = gabiPagouCasal - gabiDeveria
-
-  // Net: positive = Rafa owes Gabi; negative = Gabi owes Rafa
   const netEmprestimos = emprestimosGabiParaRafa - emprestimosRafaParaGabi
   const netTotal = gabiSaldo + netEmprestimos
 

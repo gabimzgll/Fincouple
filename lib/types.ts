@@ -44,6 +44,7 @@ export interface BalancoIndividual {
   entradas: number
   saidas: number
   saidas_por_metodo: Record<string, number>
+  saidas_por_categoria: Record<string, number>
   sobra: number
 }
 
