@@ -3,12 +3,13 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
-import { Transaction, Acerto } from '@/lib/types'
+import { Transaction, Acerto, CATEGORIAS_CASAL, CATEGORIAS_PESSOAL } from '@/lib/types'
 import {
   calcularBalancoProporcional,
   calcularSaldoCasal,
   calcularGastosCasalPorCategoria,
   calcularGastosPessoaisPorCategoria,
+  calcularRendaExtra,
   formatCurrency,
   getNomeMes,
 } from '@/lib/calculations'
@@ -17,8 +18,18 @@ import {
 const PALETTE = [
   '#fb7185', '#fbbf24', '#a78bfa', '#34d399', '#38bdf8', '#fb923c',
   '#f472b6', '#2dd4bf', '#818cf8', '#a3e635', '#e879f9', '#22d3ee',
-  '#f87171', '#c084fc', '#4ade80', '#60a5fa',
+  '#f87171', '#c084fc', '#4ade80', '#60a5fa', '#facc15', '#2563eb',
+  '#16a34a', '#db2777', '#ea580c', '#7c3aed', '#0d9488', '#65a30d',
+  '#dc2626', '#0891b2', '#9333ea', '#ca8a04',
 ]
+
+// Mapa fixo categoria -> cor, para a mesma categoria ter a mesma cor nos 3 gráficos
+const ALL_CATEGORIAS = Array.from(new Set([...CATEGORIAS_PESSOAL, ...CATEGORIAS_CASAL, 'sem categoria']))
+function colorForCategory(cat: string): string {
+  const idx = ALL_CATEGORIAS.indexOf(cat)
+  if (idx === -1) return '#cbd5e1'
+  return PALETTE[idx % PALETTE.length]
+}
 
 // ---- Helpers de comparação mês a mês ----
 function variacao(atual: number, anterior: number): { pct: number | null; subiu: boolean } {
@@ -55,64 +66,44 @@ function KpiCard({
   )
 }
 
-// ---- Barras horizontais por categoria ----
-function CategoryBars({ data, colorOffset = 0 }: { data: Record<string, number>; colorOffset?: number }) {
-  const entries = Object.entries(data).sort((a, b) => b[1] - a[1])
-  if (entries.length === 0) return <p className="text-gray-400 text-xs">Sem gastos neste mês</p>
-  const max = Math.max(...entries.map(([, v]) => v))
-  return (
-    <ul className="space-y-2 text-sm">
-      {entries.map(([cat, val], i) => (
-        <li key={cat}>
-          <div className="flex justify-between mb-0.5">
-            <span className="text-gray-600 capitalize truncate">{cat}</span>
-            <span className="font-medium text-gray-800 whitespace-nowrap ml-2">{formatCurrency(val)}</span>
-          </div>
-          <div className="h-2 rounded-full bg-gray-100 overflow-hidden">
-            <div
-              className="h-full rounded-full"
-              style={{ width: `${(val / max) * 100}%`, backgroundColor: PALETTE[(i + colorOffset) % PALETTE.length] }}
-            />
-          </div>
-        </li>
-      ))}
-    </ul>
-  )
-}
-
-// ---- Rosca (donut) em CSS puro via conic-gradient ----
-function Donut({ data }: { data: Record<string, number> }) {
+// ---- Gráfico de pizza (rosca) em CSS puro, cores fixas por categoria ----
+function PieCard({ title, data, border }: { title: string; data: Record<string, number>; border: string }) {
   const entries = Object.entries(data).sort((a, b) => b[1] - a[1])
   const total = entries.reduce((s, [, v]) => s + v, 0)
-  if (total === 0) return null
 
   let acc = 0
-  const stops: string[] = []
-  entries.forEach(([, val], i) => {
+  const stops = entries.map(([cat, val]) => {
     const start = (acc / total) * 360
     acc += val
     const end = (acc / total) * 360
-    stops.push(`${PALETTE[i % PALETTE.length]} ${start}deg ${end}deg`)
+    return `${colorForCategory(cat)} ${start}deg ${end}deg`
   })
 
   return (
-    <div className="flex items-center gap-4">
-      <div className="relative shrink-0" style={{ width: 120, height: 120 }}>
-        <div className="w-full h-full rounded-full" style={{ background: `conic-gradient(${stops.join(', ')})` }} />
-        <div className="absolute inset-[18px] bg-white rounded-full flex flex-col items-center justify-center">
-          <span className="text-[10px] text-gray-400">total</span>
-          <span className="text-sm font-bold text-gray-800">{formatCurrency(total)}</span>
+    <div className={`bg-white rounded-2xl shadow p-5 border ${border}`}>
+      <h2 className="text-base font-semibold text-gray-700 mb-3">{title}</h2>
+      {total === 0 ? (
+        <p className="text-gray-400 text-xs">Sem gastos neste mês</p>
+      ) : (
+        <div className="flex flex-col items-center gap-3">
+          <div className="relative" style={{ width: 130, height: 130 }}>
+            <div className="w-full h-full rounded-full" style={{ background: `conic-gradient(${stops.join(', ')})` }} />
+            <div className="absolute inset-[20px] bg-white rounded-full flex flex-col items-center justify-center">
+              <span className="text-[10px] text-gray-400">total</span>
+              <span className="text-sm font-bold text-gray-800">{formatCurrency(total)}</span>
+            </div>
+          </div>
+          <ul className="space-y-1 text-xs w-full">
+            {entries.map(([cat, val]) => (
+              <li key={cat} className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: colorForCategory(cat) }} />
+                <span className="text-gray-600 capitalize truncate">{cat}</span>
+                <span className="text-gray-400 ml-auto whitespace-nowrap">{formatCurrency(val)} · {((val / total) * 100).toFixed(0)}%</span>
+              </li>
+            ))}
+          </ul>
         </div>
-      </div>
-      <ul className="space-y-1 text-xs min-w-0">
-        {entries.slice(0, 6).map(([cat, val], i) => (
-          <li key={cat} className="flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: PALETTE[i % PALETTE.length] }} />
-            <span className="text-gray-600 capitalize truncate">{cat}</span>
-            <span className="text-gray-400 ml-auto whitespace-nowrap">{((val / total) * 100).toFixed(0)}%</span>
-          </li>
-        ))}
-      </ul>
+      )}
     </div>
   )
 }
@@ -146,13 +137,14 @@ export default function HomePage() {
   const casalPorCategoria = calcularGastosCasalPorCategoria(transactions, mes, ano)
   const gabiPessoalPorCategoria = calcularGastosPessoaisPorCategoria(transactions, 'Gabi', mes, ano)
   const rafaPessoalPorCategoria = calcularGastosPessoaisPorCategoria(transactions, 'Rafa', mes, ano)
+  const rendaExtra = calcularRendaExtra(transactions, mes, ano)
 
   // Mês anterior (para comparação)
   const prevMes = mes === 1 ? 12 : mes - 1
   const prevAno = mes === 1 ? ano - 1 : ano
   const gabiPrev = calcularBalancoProporcional(transactions, 'Gabi', prevMes, prevAno)
   const rafaPrev = calcularBalancoProporcional(transactions, 'Rafa', prevMes, prevAno)
-  const saldoCasalPrev = calcularSaldoCasal(transactions, acertos, prevMes, prevAno)
+  const rendaExtraPrev = calcularRendaExtra(transactions, prevMes, prevAno)
 
   // Totais do casal (somando as duas pessoas)
   const entradasTotal = gabiBalanco.entradas + rafaBalanco.entradas
@@ -205,7 +197,7 @@ export default function HomePage() {
             <KpiCard label="Entrou no mês" valor={entradasTotal} anterior={entradasPrev} cor="text-green-600" />
             <KpiCard label="Saiu no mês" valor={saidasTotal} anterior={saidasPrev} cor="text-red-500" gastoEhRuim />
             <KpiCard label="Sobrou" valor={sobraTotal} anterior={sobraPrev} cor={sobraTotal >= 0 ? 'text-green-600' : 'text-red-500'} />
-            <KpiCard label="Gastos do casal" valor={saldoCasal.total_casal} anterior={saldoCasalPrev.total_casal} cor="text-amber-600" gastoEhRuim />
+            <KpiCard label="Renda extra" valor={rendaExtra} anterior={rendaExtraPrev} cor="text-emerald-600" />
           </div>
 
           {/* Balanços individuais (proporcional) */}
@@ -238,6 +230,10 @@ export default function HomePage() {
                     <div><Delta atual={gabiBalanco.sobra} anterior={gabiPrev.sobra} /></div>
                   </div>
                 </div>
+                <div className="mt-2 flex justify-between items-center bg-rose-50 rounded-lg px-3 py-2">
+                  <span className="text-gray-600">💳 Fatura do cartão</span>
+                  <span className="font-semibold text-gray-800">{formatCurrency(gabiBalanco.fatura_cartao)}</span>
+                </div>
               </div>
             </div>
 
@@ -268,6 +264,10 @@ export default function HomePage() {
                     </span>
                     <div><Delta atual={rafaBalanco.sobra} anterior={rafaPrev.sobra} /></div>
                   </div>
+                </div>
+                <div className="mt-2 flex justify-between items-center bg-blue-50 rounded-lg px-3 py-2">
+                  <span className="text-gray-600">💳 Fatura do cartão</span>
+                  <span className="font-semibold text-gray-800">{formatCurrency(rafaBalanco.fatura_cartao)}</span>
                 </div>
               </div>
             </div>
@@ -336,28 +336,11 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* Para onde foi o dinheiro do casal: rosca */}
-          {Object.keys(casalPorCategoria).length > 0 && (
-            <div className="bg-white rounded-2xl shadow p-5 border border-amber-100">
-              <h2 className="text-lg font-semibold text-amber-600 mb-4">Para onde foi o dinheiro do casal</h2>
-              <Donut data={casalPorCategoria} />
-            </div>
-          )}
-
-          {/* Categorias em barras */}
+          {/* Gráficos de pizza por categoria (cores fixas por categoria) */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="bg-white rounded-2xl shadow p-5 border border-rose-100">
-              <h2 className="text-base font-semibold text-rose-600 mb-3">Gabi — gastos pessoais</h2>
-              <CategoryBars data={gabiPessoalPorCategoria} colorOffset={0} />
-            </div>
-            <div className="bg-white rounded-2xl shadow p-5 border border-violet-100">
-              <h2 className="text-base font-semibold text-violet-600 mb-3">Rafa — gastos pessoais</h2>
-              <CategoryBars data={rafaPessoalPorCategoria} colorOffset={4} />
-            </div>
-            <div className="bg-white rounded-2xl shadow p-5 border border-amber-100">
-              <h2 className="text-base font-semibold text-amber-600 mb-3">Casal — gastos compartilhados</h2>
-              <CategoryBars data={casalPorCategoria} colorOffset={8} />
-            </div>
+            <PieCard title="Gabi — gastos pessoais" data={gabiPessoalPorCategoria} border="border-rose-100" />
+            <PieCard title="Rafa — gastos pessoais" data={rafaPessoalPorCategoria} border="border-violet-100" />
+            <PieCard title="Casal — gastos compartilhados" data={casalPorCategoria} border="border-amber-100" />
           </div>
 
           {/* Ações */}

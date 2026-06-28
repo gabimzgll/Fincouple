@@ -131,6 +131,7 @@ export interface BalancoProporcional {
   parte_casal: number
   saidas: number
   sobra: number
+  fatura_cartao: number
 }
 
 export function calcularBalancoProporcional(
@@ -143,14 +144,21 @@ export function calcularBalancoProporcional(
   let entradas = 0
   let gastos_pessoais = 0
   let total_casal = 0
+  let fatura_cartao = 0
 
   for (const t of tx) {
     const valor = valorNoMes(t, mes, ano)
-    if (t.tipo === 'casal') {
-      total_casal += valor
-    } else if (t.pessoa === pessoa) {
-      if (t.tipo === 'entrada') entradas += valor
-      else if (t.tipo === 'pessoal' || t.tipo === 'parcelado') gastos_pessoais += valor
+    if (t.tipo === 'casal') total_casal += valor
+
+    if (t.pessoa === pessoa) {
+      if (t.tipo === 'entrada') {
+        entradas += valor
+      } else {
+        if (t.tipo === 'pessoal' || t.tipo === 'parcelado') gastos_pessoais += valor
+        // Fatura = tudo que a pessoa pagou no cartão de crédito (inclui a
+        // parte do casal que ela pagou no cartão), exceto entradas.
+        if (t.forma_pagamento === 'cartão de crédito') fatura_cartao += valor
+      }
     }
   }
 
@@ -158,7 +166,24 @@ export function calcularBalancoProporcional(
   const parte_casal = total_casal * percent
   const saidas = gastos_pessoais + parte_casal
 
-  return { pessoa, entradas, gastos_pessoais, parte_casal, saidas, sobra: entradas - saidas }
+  return { pessoa, entradas, gastos_pessoais, parte_casal, saidas, sobra: entradas - saidas, fatura_cartao }
+}
+
+// Remove acentos e deixa minúsculo, para comparar descrições.
+function normalizar(s: string): string {
+  return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+}
+
+// Renda extra = todas as entradas (dos dois) que NÃO são salário nem mesada.
+export function calcularRendaExtra(transacoes: Transaction[], mes: number, ano: number): number {
+  const tx = transacoesDoMes(transacoes, mes, ano).filter(t => t.tipo === 'entrada')
+  let extra = 0
+  for (const t of tx) {
+    const d = normalizar(t.descricao || '')
+    const ehFixa = d.includes('salario') || d.includes('mesada')
+    if (!ehFixa) extra += valorNoMes(t, mes, ano)
+  }
+  return extra
 }
 
 export function calcularSaldoCasal(
