@@ -87,7 +87,7 @@ export const CATEGORIAS = [
   'roupas/calçados', 'academia', 'farmácia', 'date do casal', 'saúde',
   'educação', 'assinatura', 'uber', 'mercado', 'ifood', 'aluguel',
   'condomínio', 'água', 'luz', 'gás', 'internet', 'celular', 'fiança',
-  'reparos', 'compras domésticas', 'theo', 'presente', 'viagem', 'lazer', 'outros'
+  'reparos', 'compras domésticas', 'theo', 'presente', 'viagem', 'lazer', 'loteria', 'outros'
 ]
 
 // Categorias das entradas
