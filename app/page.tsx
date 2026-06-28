@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { Transaction, Acerto } from '@/lib/types'
 import {
-  calcularBalancoIndividual,
+  calcularBalancoProporcional,
   calcularSaldoCasal,
   calcularGastosCasalPorCategoria,
   calcularGastosPessoaisPorCategoria,
@@ -140,8 +140,8 @@ export default function HomePage() {
   }, [])
 
   // Mês selecionado
-  const gabiBalanco = calcularBalancoIndividual(transactions, acertos, 'Gabi', mes, ano)
-  const rafaBalanco = calcularBalancoIndividual(transactions, acertos, 'Rafa', mes, ano)
+  const gabiBalanco = calcularBalancoProporcional(transactions, 'Gabi', mes, ano)
+  const rafaBalanco = calcularBalancoProporcional(transactions, 'Rafa', mes, ano)
   const saldoCasal = calcularSaldoCasal(transactions, acertos, mes, ano)
   const casalPorCategoria = calcularGastosCasalPorCategoria(transactions, mes, ano)
   const gabiPessoalPorCategoria = calcularGastosPessoaisPorCategoria(transactions, 'Gabi', mes, ano)
@@ -150,8 +150,8 @@ export default function HomePage() {
   // Mês anterior (para comparação)
   const prevMes = mes === 1 ? 12 : mes - 1
   const prevAno = mes === 1 ? ano - 1 : ano
-  const gabiPrev = calcularBalancoIndividual(transactions, acertos, 'Gabi', prevMes, prevAno)
-  const rafaPrev = calcularBalancoIndividual(transactions, acertos, 'Rafa', prevMes, prevAno)
+  const gabiPrev = calcularBalancoProporcional(transactions, 'Gabi', prevMes, prevAno)
+  const rafaPrev = calcularBalancoProporcional(transactions, 'Rafa', prevMes, prevAno)
   const saldoCasalPrev = calcularSaldoCasal(transactions, acertos, prevMes, prevAno)
 
   // Totais do casal (somando as duas pessoas)
@@ -208,7 +208,7 @@ export default function HomePage() {
             <KpiCard label="Gastos do casal" valor={saldoCasal.total_casal} anterior={saldoCasalPrev.total_casal} cor="text-amber-600" gastoEhRuim />
           </div>
 
-          {/* Balanços individuais */}
+          {/* Balanços individuais (proporcional) */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="bg-white rounded-2xl shadow p-5 border border-rose-100">
               <h2 className="text-lg font-semibold text-rose-600 mb-3">Balanço da Gabi</h2>
@@ -217,16 +217,18 @@ export default function HomePage() {
                   <span className="text-gray-500">Entradas</span>
                   <span className="text-green-600 font-medium">{formatCurrency(gabiBalanco.entradas)}</span>
                 </div>
+                <div className="flex justify-between pl-4 text-gray-400">
+                  <span>Gastos pessoais</span>
+                  <span>{formatCurrency(gabiBalanco.gastos_pessoais)}</span>
+                </div>
+                <div className="flex justify-between pl-4 text-gray-400">
+                  <span>Parte do casal (62,6%)</span>
+                  <span>{formatCurrency(gabiBalanco.parte_casal)}</span>
+                </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-500">Saídas</span>
+                  <span className="text-gray-500">Saídas (total)</span>
                   <span className="text-red-500 font-medium">{formatCurrency(gabiBalanco.saidas)}</span>
                 </div>
-                {Object.entries(gabiBalanco.saidas_por_metodo).map(([metodo, valor]) => (
-                  <div key={metodo} className="flex justify-between pl-4 text-gray-400">
-                    <span>{metodo}</span>
-                    <span>{formatCurrency(valor)}</span>
-                  </div>
-                ))}
                 <div className="border-t pt-2 flex justify-between font-semibold items-center">
                   <span>Sobra</span>
                   <div className="text-right">
@@ -246,16 +248,18 @@ export default function HomePage() {
                   <span className="text-gray-500">Entradas</span>
                   <span className="text-green-600 font-medium">{formatCurrency(rafaBalanco.entradas)}</span>
                 </div>
+                <div className="flex justify-between pl-4 text-gray-400">
+                  <span>Gastos pessoais</span>
+                  <span>{formatCurrency(rafaBalanco.gastos_pessoais)}</span>
+                </div>
+                <div className="flex justify-between pl-4 text-gray-400">
+                  <span>Parte do casal (37,4%)</span>
+                  <span>{formatCurrency(rafaBalanco.parte_casal)}</span>
+                </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-500">Saídas</span>
+                  <span className="text-gray-500">Saídas (total)</span>
                   <span className="text-red-500 font-medium">{formatCurrency(rafaBalanco.saidas)}</span>
                 </div>
-                {Object.entries(rafaBalanco.saidas_por_metodo).map(([metodo, valor]) => (
-                  <div key={metodo} className="flex justify-between pl-4 text-gray-400">
-                    <span>{metodo}</span>
-                    <span>{formatCurrency(valor)}</span>
-                  </div>
-                ))}
                 <div className="border-t pt-2 flex justify-between font-semibold items-center">
                   <span>Sobra</span>
                   <div className="text-right">

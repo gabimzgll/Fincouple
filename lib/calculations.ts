@@ -120,6 +120,47 @@ export function calcularGastosCasalPorCategoria(
   return por_categoria
 }
 
+// Balanço proporcional: custo real de cada pessoa = gastos pessoais
+// (pessoal + parcelado) + a fatia que lhe cabe nos gastos do casal
+// (Gabi 62,6% / Rafa 37,4%). Empréstimos não entram (são transferência,
+// não consumo).
+export interface BalancoProporcional {
+  pessoa: Pessoa
+  entradas: number
+  gastos_pessoais: number
+  parte_casal: number
+  saidas: number
+  sobra: number
+}
+
+export function calcularBalancoProporcional(
+  transacoes: Transaction[],
+  pessoa: Pessoa,
+  mes: number,
+  ano: number
+): BalancoProporcional {
+  const tx = transacoesDoMes(transacoes, mes, ano)
+  let entradas = 0
+  let gastos_pessoais = 0
+  let total_casal = 0
+
+  for (const t of tx) {
+    const valor = valorNoMes(t, mes, ano)
+    if (t.tipo === 'casal') {
+      total_casal += valor
+    } else if (t.pessoa === pessoa) {
+      if (t.tipo === 'entrada') entradas += valor
+      else if (t.tipo === 'pessoal' || t.tipo === 'parcelado') gastos_pessoais += valor
+    }
+  }
+
+  const percent = pessoa === 'Gabi' ? GABI_PERCENTUAL : RAFA_PERCENTUAL
+  const parte_casal = total_casal * percent
+  const saidas = gastos_pessoais + parte_casal
+
+  return { pessoa, entradas, gastos_pessoais, parte_casal, saidas, sobra: entradas - saidas }
+}
+
 export function calcularSaldoCasal(
   transacoes: Transaction[],
   acertos: Acerto[],
