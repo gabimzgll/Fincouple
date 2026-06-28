@@ -8,6 +8,7 @@ import {
   calcularBalancoIndividual,
   calcularSaldoCasal,
   calcularGastosCasalPorCategoria,
+  calcularGastosPessoaisPorCategoria,
   formatCurrency,
   getNomeMes,
 } from '@/lib/calculations'
@@ -143,6 +144,8 @@ export default function HomePage() {
   const rafaBalanco = calcularBalancoIndividual(transactions, acertos, 'Rafa', mes, ano)
   const saldoCasal = calcularSaldoCasal(transactions, acertos, mes, ano)
   const casalPorCategoria = calcularGastosCasalPorCategoria(transactions, mes, ano)
+  const gabiPessoalPorCategoria = calcularGastosPessoaisPorCategoria(transactions, 'Gabi', mes, ano)
+  const rafaPessoalPorCategoria = calcularGastosPessoaisPorCategoria(transactions, 'Rafa', mes, ano)
 
   // Mês anterior (para comparação)
   const prevMes = mes === 1 ? 12 : mes - 1
@@ -340,15 +343,15 @@ export default function HomePage() {
           {/* Categorias em barras */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="bg-white rounded-2xl shadow p-5 border border-rose-100">
-              <h2 className="text-base font-semibold text-rose-600 mb-3">Gabi — por categoria</h2>
-              <CategoryBars data={gabiBalanco.saidas_por_categoria} colorOffset={0} />
+              <h2 className="text-base font-semibold text-rose-600 mb-3">Gabi — gastos pessoais</h2>
+              <CategoryBars data={gabiPessoalPorCategoria} colorOffset={0} />
             </div>
             <div className="bg-white rounded-2xl shadow p-5 border border-violet-100">
-              <h2 className="text-base font-semibold text-violet-600 mb-3">Rafa — por categoria</h2>
-              <CategoryBars data={rafaBalanco.saidas_por_categoria} colorOffset={4} />
+              <h2 className="text-base font-semibold text-violet-600 mb-3">Rafa — gastos pessoais</h2>
+              <CategoryBars data={rafaPessoalPorCategoria} colorOffset={4} />
             </div>
             <div className="bg-white rounded-2xl shadow p-5 border border-amber-100">
-              <h2 className="text-base font-semibold text-amber-600 mb-3">Casal — por categoria</h2>
+              <h2 className="text-base font-semibold text-amber-600 mb-3">Casal — gastos compartilhados</h2>
               <CategoryBars data={casalPorCategoria} colorOffset={8} />
             </div>
           </div>
