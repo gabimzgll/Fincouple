@@ -49,35 +49,34 @@ export default function HistoricoPage() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-2xl font-bold text-gray-800">Historico</h1>
         <Link href="/registrar"
-          className="bg-rose-600 hover:bg-rose-700 text-white px-4 py-2 rounded-xl text-sm font-medium transition-colors">
+          className="bg-gray-900 hover:bg-black text-white px-4 py-2 rounded-xl text-sm font-medium transition-colors">
           + Nova Transacao
         </Link>
       </div>
 
       <div className="bg-white rounded-2xl shadow p-4 flex flex-wrap gap-3">
         <select value={filtroMes} onChange={(e) => setFiltroMes(e.target.value === '' ? '' : Number(e.target.value))}
-          className="border rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-rose-400 outline-none">
+          className="border rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-gray-400 outline-none">
           <option value="">Todos os meses</option>
           {meses.map((m) => <option key={m} value={m}>{getNomeMes(m)}</option>)}
         </select>
         <select value={filtroAno} onChange={(e) => setFiltroAno(Number(e.target.value))}
-          className="border rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-rose-400 outline-none">
+          className="border rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-gray-400 outline-none">
           {anos.map((a) => <option key={a} value={a}>{a}</option>)}
         </select>
         <select value={filtroPessoa} onChange={(e) => setFiltroPessoa(e.target.value as Pessoa | '')}
-          className="border rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-rose-400 outline-none">
+          className="border rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-gray-400 outline-none">
           <option value="">Todas as pessoas</option>
           <option value="Gabi">Gabi</option>
           <option value="Rafa">Rafa</option>
         </select>
         <select value={filtroTipo} onChange={(e) => setFiltroTipo(e.target.value as TipoTransacao | '')}
-          className="border rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-rose-400 outline-none">
+          className="border rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-gray-400 outline-none">
           <option value="">Todos os tipos</option>
           <option value="casal">Casal</option>
           <option value="pessoal">Pessoal</option>
           <option value="entrada">Entrada</option>
           <option value="emprestimo">Emprestimo</option>
-          <option value="parcelado">Parcelado</option>
         </select>
       </div>
 
@@ -94,9 +93,9 @@ export default function HistoricoPage() {
                   <div className="min-w-0 flex-1">
                     <p className="font-medium text-gray-800">{t.descricao}</p>
                     <p className="text-xs text-gray-400 mt-0.5">
-                      {t.pessoa} · {t.tipo} · {getNomeMes(t.mes)}/{t.ano} · {t.forma_pagamento}
+                      {t.pessoa} · {t.tipo} · {getNomeMes(t.mes_inicio || t.mes)}/{t.ano_inicio || t.ano} · {t.forma_pagamento}
                       {t.categoria ? ` · ${t.categoria}` : ''}
-                      {t.tipo === 'parcelado' ? ` · ${t.parcelas}x` : ''}
+                      {t.parcelas && t.parcelas >= 2 ? ` · ${t.parcelas}x` : ''}
                       {t.tipo === 'emprestimo' && t.para_pessoa ? ` para ${t.para_pessoa}` : ''}
                     </p>
                   </div>
@@ -104,6 +103,10 @@ export default function HistoricoPage() {
                     <span className={`font-semibold text-sm ${t.tipo === 'entrada' ? 'text-green-600' : 'text-red-500'}`}>
                       {formatCurrency(t.valor_total)}
                     </span>
+                    <Link href={`/registrar?id=${t.id}`}
+                      className="text-gray-400 hover:text-gray-700 transition-colors text-xs">
+                      editar
+                    </Link>
                     <button onClick={() => handleDelete(t.id)} disabled={deletingId === t.id}
                       className="text-gray-400 hover:text-red-500 transition-colors text-xs disabled:opacity-50">
                       {deletingId === t.id ? '...' : 'X'}

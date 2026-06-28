@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
-import { Transaction, Acerto, CATEGORIAS_CASAL, CATEGORIAS_PESSOAL } from '@/lib/types'
+import { Transaction, Acerto, CATEGORIAS } from '@/lib/types'
 import {
   calcularBalancoProporcional,
   calcularSaldoCasal,
@@ -20,9 +20,9 @@ const COR_RAFA = 'text-[#006437]'         // verde Palmeiras
 const COR_CASAL = 'text-amber-600'        // tom do casal
 
 // Cores de valores
-const COR_ENTRADA = 'text-blue-700'       // azul mais escuro
-const COR_SAIDA = 'text-orange-600'       // vermelho alaranjado
-const COR_EXTRA = 'text-sky-500'          // azul mais claro (renda extra)
+const COR_ENTRADA = 'text-blue-700'
+const COR_SAIDA = 'text-orange-600'
+const COR_EXTRA = 'text-sky-500'
 const corSaldo = (v: number) => (v >= 0 ? 'text-green-600' : 'text-red-500')
 
 // Paleta pastel para os gráficos
@@ -34,15 +34,13 @@ const PALETTE = [
   '#e9d5ff', '#bae6fd',
 ]
 
-// Mapa fixo categoria -> cor (mesma categoria = mesma cor nos 3 gráficos)
-const ALL_CATEGORIAS = Array.from(new Set([...CATEGORIAS_PESSOAL, ...CATEGORIAS_CASAL, 'sem categoria']))
+const ALL_CATEGORIAS = Array.from(new Set([...CATEGORIAS, 'sem categoria']))
 function colorForCategory(cat: string): string {
   const idx = ALL_CATEGORIAS.indexOf(cat)
   if (idx === -1) return '#cbd5e1'
   return PALETTE[idx % PALETTE.length]
 }
 
-// ---- Helpers de comparação mês a mês ----
 function variacao(atual: number, anterior: number): { pct: number | null; subiu: boolean } {
   if (anterior === 0) return { pct: atual === 0 ? 0 : null, subiu: atual > 0 }
   const pct = ((atual - anterior) / anterior) * 100
@@ -63,7 +61,6 @@ function Delta({ atual, anterior, gastoEhRuim = false }: { atual: number; anteri
   )
 }
 
-// ---- Card de KPI no topo ----
 function KpiCard({
   label, valor, anterior, cor, gastoEhRuim = false,
 }: { label: string; valor: number; anterior: number; cor: string; gastoEhRuim?: boolean }) {
@@ -76,7 +73,6 @@ function KpiCard({
   )
 }
 
-// ---- Gráfico de pizza (rosca) em CSS puro, cores fixas por categoria ----
 function PieCard({ title, titleColor, data, border }: { title: string; titleColor: string; data: Record<string, number>; border: string }) {
   const entries = Object.entries(data).sort((a, b) => b[1] - a[1])
   const total = entries.reduce((s, [, v]) => s + v, 0)
@@ -140,7 +136,6 @@ export default function HomePage() {
     load()
   }, [])
 
-  // Mês selecionado
   const gabiBalanco = calcularBalancoProporcional(transactions, 'Gabi', mes, ano)
   const rafaBalanco = calcularBalancoProporcional(transactions, 'Rafa', mes, ano)
   const saldoCasal = calcularSaldoCasal(transactions, acertos, mes, ano)
@@ -149,14 +144,12 @@ export default function HomePage() {
   const rafaPessoalPorCategoria = calcularGastosPessoaisPorCategoria(transactions, 'Rafa', mes, ano)
   const rendaExtra = calcularRendaExtra(transactions, mes, ano)
 
-  // Mês anterior (para comparação)
   const prevMes = mes === 1 ? 12 : mes - 1
   const prevAno = mes === 1 ? ano - 1 : ano
   const gabiPrev = calcularBalancoProporcional(transactions, 'Gabi', prevMes, prevAno)
   const rafaPrev = calcularBalancoProporcional(transactions, 'Rafa', prevMes, prevAno)
   const rendaExtraPrev = calcularRendaExtra(transactions, prevMes, prevAno)
 
-  // Totais (somando as duas pessoas)
   const entradasTotal = gabiBalanco.entradas + rafaBalanco.entradas
   const saidasTotal = gabiBalanco.saidas + rafaBalanco.saidas
   const sobraTotal = entradasTotal - saidasTotal
@@ -202,7 +195,6 @@ export default function HomePage() {
         <div className="text-center py-12 text-gray-400">Carregando...</div>
       ) : (
         <>
-          {/* KPIs do mês com comparação */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             <KpiCard label="Entrou no mês" valor={entradasTotal} anterior={entradasPrev} cor={COR_ENTRADA} />
             <KpiCard label="Saiu no mês" valor={saidasTotal} anterior={saidasPrev} cor={COR_SAIDA} gastoEhRuim />
@@ -210,7 +202,6 @@ export default function HomePage() {
             <KpiCard label="Renda extra" valor={rendaExtra} anterior={rendaExtraPrev} cor={COR_EXTRA} />
           </div>
 
-          {/* Balanços individuais (proporcional) */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="bg-white rounded-2xl shadow p-5 border border-purple-100">
               <h2 className={`text-lg font-semibold mb-3 ${COR_GABI}`}>Balanço da Gabi</h2>
@@ -279,14 +270,12 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* Gráficos de pizza por categoria (cores fixas por categoria) */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <PieCard title="Gabi — gastos pessoais" titleColor={COR_GABI} data={gabiPessoalPorCategoria} border="border-purple-100" />
             <PieCard title="Rafa — gastos pessoais" titleColor={COR_RAFA} data={rafaPessoalPorCategoria} border="border-green-100" />
             <PieCard title="Casal — gastos compartilhados" titleColor={COR_CASAL} data={casalPorCategoria} border="border-amber-100" />
           </div>
 
-          {/* Saldo do casal: tabela à esquerda, resultado discreto à direita */}
           <div className="bg-white rounded-2xl shadow p-5 border border-gray-100">
             <h2 className={`text-lg font-semibold mb-4 ${COR_CASAL}`}>Saldo do Casal</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-sm">
@@ -350,20 +339,15 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* Ações */}
           <div className="flex gap-3 flex-wrap">
             <Link href="/registrar" className="bg-gray-900 hover:bg-black text-white px-5 py-2.5 rounded-xl font-medium transition-colors">
               + Registrar Transação
-            </Link>
-            <Link href="/registrar?tipo=acerto" className="bg-white border border-gray-300 hover:bg-gray-50 text-gray-800 px-5 py-2.5 rounded-xl font-medium transition-colors">
-              Registrar Acerto
             </Link>
             <Link href={`/balanco/${mes}/${ano}`} className="bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 px-5 py-2.5 rounded-xl font-medium transition-colors">
               Ver Balanço Completo
             </Link>
           </div>
 
-          {/* Transações recentes */}
           <div className="bg-white rounded-2xl shadow p-5">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-gray-700">Transações Recentes</h2>
@@ -378,7 +362,7 @@ export default function HomePage() {
                     <div className="min-w-0">
                       <p className="font-medium text-gray-800 truncate">
                         {t.descricao}
-                        {t.tipo === 'parcelado' && t.parcelas ? (
+                        {t.parcelas && t.parcelas >= 2 ? (
                           <span className="ml-2 text-[10px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-full align-middle">
                             {t.parcelas}x
                           </span>
